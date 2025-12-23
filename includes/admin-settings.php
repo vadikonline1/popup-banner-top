@@ -23,7 +23,6 @@ function pbp_register_settings() {
         'popup_redirect_page' => 'Pagină Redirect',
         'popup_bg_color' => 'Culoare fundal',
         'popup_close_color' => 'Culoare buton X',
-        'popup_close_bg' => 'Fundal buton X',
     ];
     
     foreach ($popup_fields as $field => $label) {
@@ -41,7 +40,6 @@ function pbp_register_settings() {
         'banner_bg_color' => 'Culoare fundal',
         'banner_text_color' => 'Culoare text',
         'banner_link_color' => 'Culoare link',
-        'banner_close_color' => 'Culoare buton închidere',
     ];
     
     foreach ($banner_fields as $field => $label) {
@@ -119,11 +117,6 @@ function pbp_popup_close_color_cb() {
     echo '<input type="text" name="pbp_settings[popup_close_color]" value="' . esc_attr($options['popup_close_color'] ?? '#ffffff') . '" class="pbp-color-picker">';
 }
 
-function pbp_popup_close_bg_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[popup_close_bg]" value="' . esc_attr($options['popup_close_bg'] ?? '#000000') . '" class="pbp-color-picker">';
-}
-
 // Banner callbacks
 function pbp_banner_enabled_cb() {
     $options = get_option('pbp_settings');
@@ -185,11 +178,6 @@ function pbp_banner_link_color_cb() {
     echo '<input type="text" name="pbp_settings[banner_link_color]" value="' . esc_attr($options['banner_link_color'] ?? '#721c24') . '" class="pbp-color-picker">';
 }
 
-function pbp_banner_close_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_close_color]" value="' . esc_attr($options['banner_close_color'] ?? '#000000') . '" class="pbp-color-picker">';
-}
-
 function pbp_sanitize_settings($input) {
     return [
         'popup_enabled' => isset($input['popup_enabled']) ? '1' : '0',
@@ -210,7 +198,6 @@ function pbp_sanitize_settings($input) {
         'banner_bg_color' => sanitize_hex_color($input['banner_bg_color']),
         'banner_text_color' => sanitize_hex_color($input['banner_text_color']),
         'banner_link_color' => sanitize_hex_color($input['banner_link_color']),
-        'banner_close_color' => sanitize_hex_color($input['banner_close_color']),
     ];
 }
 
