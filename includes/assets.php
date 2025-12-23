@@ -18,7 +18,6 @@ function pbp_frontend_assets() {
             left:0;
             width:100%;
             z-index:9998;
-            padding:10px 0;
             margin:0;
             transition:opacity 0.3s, transform 0.3s;
         }
@@ -62,4 +61,5 @@ function pbp_admin_assets($hook) {
     wp_enqueue_script('wp-color-picker');
     wp_enqueue_script('pbp-color-picker-alpha', PBP_PLUGIN_URL . 'assets/js/wp-color-picker-alpha.min.js', ['wp-color-picker'], PBP_VERSION, true);
     wp_enqueue_script('jquery');
+
 }
