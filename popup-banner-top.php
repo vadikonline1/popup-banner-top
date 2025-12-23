@@ -2,9 +2,8 @@
 /**
  * Plugin Name: Popup & Banner Pro
  * Plugin URI: https://github.com/vadikonline1/popup-banner-top/
- * GitHub Plugin URI: https://github.com/vadikonline1/popup-banner-top
  * Description: Plugin pentru afișarea unui popup și banner top cu personalizare avansată
- * Version: 2.0.0
+ * Version: 2.0.1
  * Author: Steel..xD
  * License: GPL v2 or later
  */
@@ -45,4 +44,28 @@ function pbp_activate() {
     ];
     
     add_option('pbp_settings', $defaults);
+}
+
+// =======================
+// Plugin Meta Links
+// =======================
+add_filter('plugin_row_meta', 'pbp_plugin_row_meta', 10, 4);
+function pbp_plugin_row_meta($links, $file, $plugin_data, $status) {
+    if ($file === plugin_basename(__FILE__)) {
+        $links[] = '<a href="https://github.com/vadikonline1/popup-banner-top/" target="_blank" rel="noopener noreferrer">📖 Documentation</a>';
+        $links[] = '<a href="https://github.com/vadikonline1/popup-banner-top/issues" target="_blank" rel="noopener noreferrer">🐛 Report Issue</a>';
+        $links[] = '<a href="https://github.com/vadikonline1/popup-banner-top/" target="_blank" rel="noopener noreferrer">⭐ Rate Plugin</a>';
+        $links[] = '<a href="https://github.com/vadikonline1/popup-banner-top/" target="_blank" rel="noopener noreferrer">🐙 GitHub</a>';
+    }
+    return $links;
+}
+
+// =======================
+// Plugin Action Links
+// =======================
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'pbp_plugin_action_links');
+function pbp_plugin_action_links($actions) {
+    $settings_link = '<a href="' . admin_url('options-general.php?page=popup-banner-settings') . '" style="font-weight:bold;color:#2271b1;">⚙️ Settings</a>';
+    array_unshift($actions, $settings_link);
+    return $actions;
 }
