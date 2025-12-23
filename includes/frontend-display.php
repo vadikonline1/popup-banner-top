@@ -112,14 +112,13 @@ function pbp_display_popup() {
     // Stiluri
     $bg_color = esc_attr($options['popup_bg_color'] ?? 'rgba(0,0,0,0.8)');
     $close_color = esc_attr($options['popup_close_color'] ?? '#ffffff');
-    $close_bg = esc_attr($options['popup_close_bg'] ?? '#000000');
     ?>
     <div id="pbp-popup" style="display:none;background:<?php echo $bg_color; ?>;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;opacity:0;transition:opacity 0.3s;">
         <div id="pbp-popup-content" style="position:relative;width:fit-content;max-width:800px;margin:auto;text-align:center;top:50%;transform:translateY(-50%);">
-            <button id="pbp-popup-close" style="position:absolute;top:-15px;right:-15px;width:30px;height:30px;border-radius:50%;border:none;color:<?php echo $close_color; ?>;background:<?php echo $close_bg; ?>;font-size:20px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
+            <button id="pbp-popup-close" style="position: absolute;top: -10px;right: 2%;border:none;background: transparent;font-size: 25px;cursor:pointer;z-index:10;line-height:1;color:<?php echo $close_color; ?>;">×</button>
             <?php if ($redirect_type !== 'none'): ?>
                 <a href="<?php echo $redirect_url; ?>" target="_blank" style="display:block;">
-                    <img src="<?php echo esc_url($image_url); ?>" alt="Popup" style="max-width:100%;max-height:50vh;height:auto;width:auto;display:block;margin:0 auto;">
+                    <img src="<?php echo esc_url($image_url); ?>" alt="Popup" style="max-width:90%;max-height:fit-content;height:auto;width:auto;display:block;margin:0 auto;">
                 </a>
             <?php else: ?>
                 <img src="<?php echo esc_url($image_url); ?>" alt="Popup" style="max-width:100%;max-height:50vh;height:auto;width:auto;display:block;margin:0 auto;">
@@ -207,4 +206,5 @@ function pbp_display_popup() {
     });
     </script>
     <?php
+
 }
