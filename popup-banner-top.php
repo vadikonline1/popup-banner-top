@@ -52,13 +52,6 @@ function pbp_activate() {
     add_option('pbp_settings', $defaults);
 }
 
-// Plugin action links (doar pentru Settings)
-add_filter('plugin_action_links_' . plugin_basename(__FILE__), function($actions) {
-    $settings_link = '<a href="' . admin_url('options-general.php?page=popup-banner-settings') . '">⚙️ Settings</a>';
-    array_unshift($actions, $settings_link);
-    return $actions;
-});
-
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), function($actions) {
     $settings_link = '<a href="' . admin_url('options-general.php?page=popup-banner-settings') . '">⚙️ Settings</a>';
     array_unshift($actions, $settings_link);
@@ -86,5 +79,6 @@ add_filter('plugin_action_links_' . plugin_basename(__FILE__), function($actions
     }    
     return $actions;
 });
+
 
 
