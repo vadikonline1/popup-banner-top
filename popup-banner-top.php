@@ -3,7 +3,7 @@
  * Plugin Name: Popup & Banner Pro
  * Plugin URI: https://github.com/vadikonline1/popup-banner-top/
  * Description: Plugin pentru afișarea unui popup și banner top cu personalizare avansată
- * Version: 2.1.1
+ * Version: 2.2.0
  * Author: Steel..xD
  * GitHub Username: vadikonline1
  * GitHub Repository: popup-banner-top
