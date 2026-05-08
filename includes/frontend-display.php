@@ -1,499 +1,331 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-add_action('admin_menu', 'pbp_add_admin_menu');
-function pbp_add_admin_menu() {
-    add_options_page('Popup & Banner', 'Popup & Banner', 'manage_options', 'popup-banner-settings', 'pbp_settings_page');
-}
+add_action('wp_footer', 'pbp_display_popup');
+add_action('wp_body_open', 'pbp_display_banner');
 
-add_action('admin_init', 'pbp_register_settings');
-function pbp_register_settings() {
-    register_setting('pbp_settings_group', 'pbp_settings', 'pbp_sanitize_settings');
-    
-    add_settings_section('pbp_popup_section', 'Setări Popup', 'pbp_popup_section_cb', 'popup-banner-settings');
-    add_settings_section('pbp_banner_section', 'Setări Banner', 'pbp_banner_section_cb', 'popup-banner-settings');
-    
-    // ========== POPUP FIELDS ==========
-    
-    add_settings_field('popup_enabled', 'Activare Popup', 'pbp_popup_enabled_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_delay', 'Delay afișare (secunde)', 'pbp_popup_delay_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_content_type', 'Tip conținut', 'pbp_popup_content_type_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_image', 'Imagine Popup', 'pbp_popup_image_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_html_content', 'Conținut HTML / Shortcoduri', 'pbp_popup_html_content_cb', 'popup-banner-settings', 'pbp_popup_section');
-    
-    // ========== COUNTDOWN SETTINGS ==========
-    add_settings_field('countdown_enabled', 'Activare Countdown', 'pbp_countdown_enabled_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('countdown_target_date', 'Data țintă', 'pbp_countdown_target_date_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('countdown_on_image', 'Afișare countdown pe imagine', 'pbp_countdown_on_image_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('countdown_position', 'Poziție countdown pe imagine', 'pbp_countdown_position_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('countdown_style', 'Stil Countdown', 'pbp_countdown_style_cb', 'popup-banner-settings', 'pbp_popup_section');
-    
-    // ========== REDIRECT ==========
-    add_settings_field('popup_redirect_type', 'Acțiune la click', 'pbp_popup_redirect_type_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_redirect_url', 'URL Redirect', 'pbp_popup_redirect_url_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_redirect_page', 'Pagină Redirect', 'pbp_popup_redirect_page_cb', 'popup-banner-settings', 'pbp_popup_section');
-    
-    // ========== STYLE ==========
-    add_settings_field('popup_bg_color', 'Culoare fundal overlay', 'pbp_popup_bg_color_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_close_color', 'Culoare buton X', 'pbp_popup_close_color_cb', 'popup-banner-settings', 'pbp_popup_section');
-    add_settings_field('popup_content_bg', 'Culoare fundal conținut', 'pbp_popup_content_bg_cb', 'popup-banner-settings', 'pbp_popup_section');
-    
-    // ========== BANNER FIELDS ==========
-    add_settings_field('banner_enabled', 'Activare Banner', 'pbp_banner_enabled_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_text', 'Text Banner', 'pbp_banner_text_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_url_type', 'Acțiune link', 'pbp_banner_url_type_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_url_text', 'Text pentru link', 'pbp_banner_url_text_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_custom_url', 'URL personalizat', 'pbp_banner_custom_url_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_page_url', 'Pagină website', 'pbp_banner_page_url_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_bg_color', 'Culoare fundal', 'pbp_banner_bg_color_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_text_color', 'Culoare text', 'pbp_banner_text_color_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_link_color', 'Culoare link', 'pbp_banner_link_color_cb', 'popup-banner-settings', 'pbp_banner_section');
-    add_settings_field('banner_close_color', 'Culoare buton închidere', 'pbp_banner_close_color_cb', 'popup-banner-settings', 'pbp_banner_section');
-}
-
-// ========== SECTION CALLBACKS ==========
-function pbp_popup_section_cb() { echo '<p>Configurează setările pentru popup</p>'; }
-function pbp_banner_section_cb() { echo '<p>Configurează setările pentru banner</p>'; }
-
-// ========== HELPER FUNCTIONS ==========
-function pbp_is_date_expired($date_string) {
-    if (empty($date_string)) return false;
-    $target = strtotime($date_string);
-    $now = current_time('timestamp');
-    return ($target && $now > $target);
-}
-
-function pbp_is_countdown_expired() {
+function pbp_should_show_popup() {
     $options = get_option('pbp_settings');
-    if (($options['countdown_enabled'] ?? '0') != '1') return false;
-    $target_date = $options['countdown_target_date'] ?? '';
-    return pbp_is_date_expired($target_date);
-}
-
-// ========== POPUP CALLBACKS ==========
-function pbp_popup_enabled_cb() {
-    $options = get_option('pbp_settings');
-    $checked = checked(($options['popup_enabled'] ?? '0'), '1', false);
-    echo '<label><input type="checkbox" name="pbp_settings[popup_enabled]" value="1" ' . $checked . '> Activează popup</label>';
     
-    if (pbp_is_countdown_expired()) {
-        echo '<p style="color:red;margin-top:5px;">⚠️ <strong>Countdown-ul a expirat! Popup-ul este dezactivat automat.</strong></p>';
+    if (($options['popup_enabled'] ?? '0') != '1') return false;
+    if (isset($_COOKIE['pbp_popup_dismissed'])) return false;
+    
+    if (isset($options['countdown_enabled']) && $options['countdown_enabled'] == '1') {
+        $target_date = $options['countdown_target_date'] ?? '';
+        if (!empty($target_date)) {
+            $target_timestamp = strtotime($target_date);
+            $now = current_time('timestamp');
+            if ($now > $target_timestamp) return false;
+        }
     }
+    
+    return true;
 }
 
-function pbp_popup_delay_cb() {
+function pbp_display_banner() {
     $options = get_option('pbp_settings');
-    echo '<input type="number" name="pbp_settings[popup_delay]" value="' . esc_attr($options['popup_delay'] ?? '5') . '" min="1" max="60">';
-    echo '<p class="description">Secunde după care apare popup-ul</p>';
-}
-
-function pbp_popup_content_type_cb() {
-    $options = get_option('pbp_settings');
-    $current = $options['popup_content_type'] ?? 'image';
+    if (($options['banner_enabled'] ?? '0') != '1') return;
+    if (isset($_COOKIE['pbp_banner_dismissed'])) return;
+    
+    $text = $options['banner_text'] ?? '';
+    if (empty($text)) return;
+    
+    $url_type = $options['banner_url_type'] ?? 'none';
+    $url_text = $options['banner_url_text'] ?? 'Află mai multe';
+    
+    $url = '#';
+    if ($url_type === 'url' && !empty($options['banner_custom_url'])) {
+        $url = esc_url($options['banner_custom_url']);
+    } elseif ($url_type === 'page' && !empty($options['banner_page_url'])) {
+        $url = get_permalink(intval($options['banner_page_url']));
+    }
+    
+    $bg_color = esc_attr($options['banner_bg_color'] ?? '#f8d7da');
+    $text_color = esc_attr($options['banner_text_color'] ?? '#721c24');
+    $link_color = esc_attr($options['banner_link_color'] ?? '#721c24');
+    $close_color = esc_attr($options['banner_close_color'] ?? '#000000');
     ?>
-    <select name="pbp_settings[popup_content_type]" id="popup_content_type">
-        <option value="image" <?php selected($current, 'image'); ?>>📷 Imagine</option>
-        <option value="html" <?php selected($current, 'html'); ?>>💻 HTML / Shortcoduri</option>
-    </select>
-    <?php
-}
-
-function pbp_popup_image_cb() {
-    $options = get_option('pbp_settings');
-    $image_id = $options['popup_image'] ?? '';
-    $image_url = $image_id ? wp_get_attachment_url($image_id) : '';
-    
-    echo '<div class="pbp-image-upload" id="pbp_image_upload_wrapper">';
-    echo '<input type="hidden" name="pbp_settings[popup_image]" id="popup_image_id" value="' . esc_attr($image_id) . '">';
-    echo '<div id="popup_image_preview">';
-    if ($image_url) echo '<img src="' . esc_url($image_url) . '" style="max-width:300px;height:auto;border-radius:8px;">';
-    echo '</div>';
-    echo '<button type="button" class="button" id="upload_popup_image">📁 Alege imagine</button>';
-    if ($image_url) echo '<button type="button" class="button" id="remove_popup_image">🗑️ Șterge imagine</button>';
-    echo '</div>';
-}
-
-function pbp_popup_html_content_cb() {
-    $options = get_option('pbp_settings');
-    $content = $options['popup_html_content'] ?? '';
-    
-    // Setări pentru wp_editor cu suport shortcoduri
-    $editor_settings = array(
-        'textarea_name' => 'pbp_settings[popup_html_content]',
-        'textarea_rows' => 20,
-        'media_buttons' => true,
-        'drag_drop_upload' => true,
-        'teeny' => false,
-        'editor_class' => 'pbp-html-editor',
-        'quicktags' => true,
-        'tinymce' => array(
-            'toolbar1' => 'formatselect,bold,italic,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,unlink,wp_more,spellchecker,fullscreen,wp_adv',
-            'toolbar2' => 'strikethrough,hr,forecolor,pastetext,removeformat,charmap,outdent,indent,undo,redo,wp_help',
-        ),
-        'wpautop' => true,  // Auto paragrafe
-    );
-    
-    echo '<div id="pbp_html_wrapper">';
-    echo '<div class="pbp-shortcode-notice" style="background:#f0f6ff;border-left:4px solid #007cba;padding:10px;margin-bottom:15px;">';
-    echo '<strong>📌 Suport pentru Shortcoduri</strong><br>';
-    echo 'Poți folosi orice shortcod WordPress: <code>[contact-form-7 id="123"]</code>, <code>[products]</code>, <code>[gravityform id="1"]</code>, etc.<br>';
-    echo 'Countdown placeholder: <code>&lt;div id="pbp-countdown"&gt;&lt;/div&gt;</code>';
-    echo '</div>';
-    
-    wp_editor($content, 'pbp_html_content_editor', $editor_settings);
-    
-    echo '<p class="description" style="margin-top:10px;">';
-    echo '<strong>💡 Exemplu de structură:</strong><br>';
-    echo '<code>&lt;div style="padding:20px;max-width:500px;margin:0 auto;"&gt;<br>';
-    echo '&nbsp;&nbsp;&lt;h2&gt;Ofertă Specială!&lt;/h2&gt;<br>';
-    echo '&nbsp;&nbsp;[contact-form-7 id="123"]<br>';
-    echo '&nbsp;&nbsp;&lt;div id="pbp-countdown"&gt;&lt;/div&gt;<br>';
-    echo '&nbsp;&nbsp;&lt;p&gt;Profită acum!&lt;/p&gt;<br>';
-    echo '&lt;/div&gt;</code>';
-    echo '</p>';
-    echo '</div>';
-    
-    // Adăugăm buton pentru shortcoduri în editor (opțional)
-    add_action('admin_footer', 'pbp_add_shortcode_button');
-}
-
-// Adaugă un buton pentru inserare rapidă shortcoduri
-function pbp_add_shortcode_button() {
-    ?>
+    <div class="pbp-banner-top" id="pbpTopBanner" style="background:<?php echo $bg_color; ?>;color:<?php echo $text_color; ?>; font-size: small;">
+        <div class="pbp-container">
+            <div class="pbp-row">
+                <div class="pbp-col-10">
+                    <p style="color:<?php echo $text_color; ?>;margin:0;padding:5px 0;"><?php echo wp_kses_post($text); ?></p>
+                </div>
+                <div class="pbp-col-2">
+                    <?php if ($url_type !== 'none'): ?>
+                        <a href="<?php echo $url; ?>" class="pbp-btn-link" target="_blank" style="color:<?php echo $link_color; ?>;text-decoration:underline;margin-right:10px;">
+                            <?php echo esc_html($url_text); ?>
+                        </a>
+                    <?php endif; ?>
+                    <button class="pbp-btn-close" id="pbpBannerClose" style="color:<?php echo $close_color; ?>;background:none;border:none;font-size:20px;cursor:pointer;padding:0;line-height:1;">×</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
-    jQuery(document).ready(function($) {
-        // Adaugă un buton în toolbar-ul editorului
-        if (typeof wp.media !== 'undefined') {
-            // Poți adăuga un meniu dropdown cu shortcoduri comune
-            console.log('Editor ready for shortcodes');
+    document.addEventListener('DOMContentLoaded', function() {
+        var banner = document.getElementById('pbpTopBanner');
+        var closeBtn = document.getElementById('pbpBannerClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                if (banner) {
+                    banner.style.opacity = '0';
+                    banner.style.transform = 'translateY(-100%)';
+                    setTimeout(function() {
+                        banner.style.display = 'none';
+                        document.cookie = "pbp_banner_dismissed=true; path=/; max-age=86400";
+                        document.body.style.paddingTop = '0';
+                    }, 300);
+                }
+            });
+        }
+        if (banner) {
+            var bannerHeight = banner.offsetHeight;
+            document.body.style.paddingTop = bannerHeight + 'px';
         }
     });
     </script>
-    <style>
-    .pbp-shortcode-notice code {
-        background: #fff;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    </style>
     <?php
 }
 
-// ========== COUNTDOWN CALLBACKS ==========
-function pbp_countdown_enabled_cb() {
-    $options = get_option('pbp_settings');
-    $checked = checked($options['countdown_enabled'] ?? '0', '1', false);
-    echo '<label><input type="checkbox" name="pbp_settings[countdown_enabled]" value="1" id="countdown_enabled" ' . $checked . '> Activează countdown timer</label>';
-    echo '<p class="description">Dacă activezi countdown-ul și timpul a expirat, popup-ul NU se va mai afișa</p>';
-}
-
-function pbp_countdown_target_date_cb() {
-    $options = get_option('pbp_settings');
-    $date = $options['countdown_target_date'] ?? '';
-    ?>
-    <div id="countdown_date_wrapper">
-        <input type="datetime-local" name="pbp_settings[countdown_target_date]" value="<?php echo esc_attr($date); ?>" class="regular-text" style="width: 250px;">
-        <p class="description">Alege data și ora exactă când expiră countdown-ul</p>
-        <?php
-        if (!empty($date) && pbp_is_date_expired($date)) {
-            echo '<p style="color:red;"><strong>⚠️ Data introdusă a expirat deja! Popup-ul nu se va afișa.</strong></p>';
-        }
-        ?>
-    </div>
-    <?php
-}
-
-function pbp_countdown_on_image_cb() {
-    $options = get_option('pbp_settings');
-    $checked = checked($options['countdown_on_image'] ?? '1', '1', false);
-    echo '<label><input type="checkbox" name="pbp_settings[countdown_on_image]" value="1" id="countdown_on_image" ' . $checked . '> Afișează countdown-ul suprapus pe imagine</label>';
-    echo '<p class="description">Dacă debifezi, countdown-ul nu se va afișa deloc pe imagine</p>';
-}
-
-function pbp_countdown_position_cb() {
-    $options = get_option('pbp_settings');
-    $position = $options['countdown_position'] ?? 'bottom-center';
-    ?>
-    <select name="pbp_settings[countdown_position]" id="countdown_position">
-        <option value="top-left" <?php selected($position, 'top-left'); ?>>Stânga sus</option>
-        <option value="top-center" <?php selected($position, 'top-center'); ?>>Centru sus</option>
-        <option value="top-right" <?php selected($position, 'top-right'); ?>>Dreapta sus</option>
-        <option value="middle-left" <?php selected($position, 'middle-left'); ?>>Stânga mijloc</option>
-        <option value="middle-center" <?php selected($position, 'middle-center'); ?>>Centru mijloc</option>
-        <option value="middle-right" <?php selected($position, 'middle-right'); ?>>Dreapta mijloc</option>
-        <option value="bottom-left" <?php selected($position, 'bottom-left'); ?>>Stânga jos</option>
-        <option value="bottom-center" <?php selected($position, 'bottom-center'); ?>>Centru jos</option>
-        <option value="bottom-right" <?php selected($position, 'bottom-right'); ?>>Dreapta jos</option>
-    </select>
-    <p class="description">Poziția countdown-ului pe imagine</p>
-    <?php
-}
-
-function pbp_countdown_style_cb() {
-    $options = get_option('pbp_settings');
-    $style = $options['countdown_style'] ?? 'default';
-    ?>
-    <select name="pbp_settings[countdown_style]" id="countdown_style">
-        <option value="default" <?php selected($style, 'default'); ?>>🔥 Default (gradient mov)</option>
-        <option value="dark" <?php selected($style, 'dark'); ?>>🌙 Dark (negru cu text alb)</option>
-        <option value="light" <?php selected($style, 'light'); ?>>☀️ Light (alb cu umbră)</option>
-        <option value="custom" <?php selected($style, 'custom'); ?>>🎨 Personalizat (folosește CSS-ul tău)</option>
-    </select>
-    <?php
-}
-
-// ========== REDIRECT CALLBACKS ==========
-function pbp_popup_redirect_type_cb() {
-    $options = get_option('pbp_settings');
-    $current = $options['popup_redirect_type'] ?? 'none';
-    
-    echo '<select name="pbp_settings[popup_redirect_type]" id="popup_redirect_type">';
-    echo '<option value="none" ' . selected($current, 'none', false) . '>Niciuna</option>';
-    echo '<option value="url" ' . selected($current, 'url', false) . '>Redirect către URL</option>';
-    echo '<option value="page" ' . selected($current, 'page', false) . '>Redirect către pagină</option>';
-    echo '</select>';
-}
-
-function pbp_popup_redirect_url_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="url" name="pbp_settings[popup_redirect_url]" value="' . esc_url($options['popup_redirect_url'] ?? '') . '" class="regular-text">';
-    echo '<p class="description">Completează doar dacă ai selectat "Redirect către URL"</p>';
-}
-
-function pbp_popup_redirect_page_cb() {
-    $options = get_option('pbp_settings');
-    $page_id = $options['popup_redirect_page'] ?? '';
-    
-    wp_dropdown_pages([
-        'name' => 'pbp_settings[popup_redirect_page]',
-        'selected' => $page_id,
-        'show_option_none' => 'Selectează o pagină',
-        'option_none_value' => ''
-    ]);
-    echo '<p class="description">Completează doar dacă ai selectat "Redirect către pagină"</p>';
-}
-
-// ========== STYLE CALLBACKS ==========
-function pbp_popup_bg_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[popup_bg_color]" value="' . esc_attr($options['popup_bg_color'] ?? 'rgba(0,0,0,0.8)') . '" class="pbp-color-picker" data-alpha="true">';
-}
-
-function pbp_popup_close_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[popup_close_color]" value="' . esc_attr($options['popup_close_color'] ?? '#ffffff') . '" class="pbp-color-picker">';
-}
-
-function pbp_popup_content_bg_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[popup_content_bg]" value="' . esc_attr($options['popup_content_bg'] ?? '#ffffff') . '" class="pbp-color-picker">';
-}
-
-// ========== BANNER CALLBACKS ==========
-function pbp_banner_enabled_cb() {
-    $options = get_option('pbp_settings');
-    echo '<label><input type="checkbox" name="pbp_settings[banner_enabled]" value="1" ' . checked($options['banner_enabled'] ?? '0', '1', false) . '> Activează banner</label>';
-}
-
-function pbp_banner_text_cb() {
-    $options = get_option('pbp_settings');
-    echo '<textarea name="pbp_settings[banner_text]" rows="3" cols="50" class="large-text">' . esc_textarea($options['banner_text'] ?? '') . '</textarea>';
-}
-
-function pbp_banner_url_type_cb() {
-    $options = get_option('pbp_settings');
-    $current = $options['banner_url_type'] ?? 'none';
-    
-    echo '<select name="pbp_settings[banner_url_type]" id="banner_url_type">';
-    echo '<option value="none" ' . selected($current, 'none', false) . '>Niciuna</option>';
-    echo '<option value="url" ' . selected($current, 'url', false) . '>URL personalizat</option>';
-    echo '<option value="page" ' . selected($current, 'page', false) . '>Pagină website</option>';
-    echo '</select>';
-}
-
-function pbp_banner_url_text_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_url_text]" value="' . esc_attr($options['banner_url_text'] ?? 'Află mai multe') . '" class="regular-text">';
-}
-
-function pbp_banner_custom_url_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="url" name="pbp_settings[banner_custom_url]" value="' . esc_url($options['banner_custom_url'] ?? '') . '" class="regular-text">';
-    echo '<p class="description">Completează doar dacă ai selectat "URL personalizat"</p>';
-}
-
-function pbp_banner_page_url_cb() {
-    $options = get_option('pbp_settings');
-    $page_id = $options['banner_page_url'] ?? '';
-    
-    wp_dropdown_pages([
-        'name' => 'pbp_settings[banner_page_url]',
-        'selected' => $page_id,
-        'show_option_none' => 'Selectează o pagină',
-        'option_none_value' => ''
-    ]);
-    echo '<p class="description">Completează doar dacă ai selectat "Pagină website"</p>';
-}
-
-function pbp_banner_bg_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_bg_color]" value="' . esc_attr($options['banner_bg_color'] ?? '#f8d7da') . '" class="pbp-color-picker">';
-}
-
-function pbp_banner_text_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_text_color]" value="' . esc_attr($options['banner_text_color'] ?? '#721c24') . '" class="pbp-color-picker">';
-}
-
-function pbp_banner_link_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_link_color]" value="' . esc_attr($options['banner_link_color'] ?? '#721c24') . '" class="pbp-color-picker">';
-}
-
-function pbp_banner_close_color_cb() {
-    $options = get_option('pbp_settings');
-    echo '<input type="text" name="pbp_settings[banner_close_color]" value="' . esc_attr($options['banner_close_color'] ?? '#000000') . '" class="pbp-color-picker">';
-}
-
-// ========== SANITIZE ==========
-function pbp_sanitize_settings($input) {
-    return [
-        'popup_enabled' => (isset($input['popup_enabled']) && !pbp_is_countdown_expired()) ? '1' : '0',
-        'popup_delay' => absint($input['popup_delay']),
-        'popup_content_type' => sanitize_text_field($input['popup_content_type']),
-        'popup_image' => absint($input['popup_image']),
-        'popup_html_content' => wp_kses_post($input['popup_html_content']),
-        'countdown_enabled' => isset($input['countdown_enabled']) ? '1' : '0',
-        'countdown_target_date' => sanitize_text_field($input['countdown_target_date']),
-        'countdown_on_image' => isset($input['countdown_on_image']) ? '1' : '0',
-        'countdown_position' => sanitize_text_field($input['countdown_position']),
-        'countdown_style' => sanitize_text_field($input['countdown_style']),
-        'popup_redirect_type' => sanitize_text_field($input['popup_redirect_type']),
-        'popup_redirect_url' => esc_url_raw($input['popup_redirect_url']),
-        'popup_redirect_page' => absint($input['popup_redirect_page']),
-        'popup_bg_color' => sanitize_text_field($input['popup_bg_color']),
-        'popup_close_color' => sanitize_hex_color($input['popup_close_color']),
-        'popup_content_bg' => sanitize_hex_color($input['popup_content_bg']),
-        'banner_enabled' => isset($input['banner_enabled']) ? '1' : '0',
-        'banner_text' => wp_kses_post($input['banner_text']),
-        'banner_url_type' => sanitize_text_field($input['banner_url_type']),
-        'banner_url_text' => sanitize_text_field($input['banner_url_text']),
-        'banner_custom_url' => esc_url_raw($input['banner_custom_url']),
-        'banner_page_url' => absint($input['banner_page_url']),
-        'banner_bg_color' => sanitize_hex_color($input['banner_bg_color']),
-        'banner_text_color' => sanitize_hex_color($input['banner_text_color']),
-        'banner_link_color' => sanitize_hex_color($input['banner_link_color']),
-        'banner_close_color' => sanitize_hex_color($input['banner_close_color']),
+function pbp_get_countdown_position_css($position) {
+    $positions = [
+        'top-left' => 'top:20px;left:20px;transform:none;',
+        'top-center' => 'top:20px;left:50%;transform:translateX(-50%);',
+        'top-right' => 'top:20px;right:20px;transform:none;',
+        'middle-left' => 'top:50%;left:20px;transform:translateY(-50%);',
+        'middle-center' => 'top:50%;left:50%;transform:translate(-50%,-50%);',
+        'middle-right' => 'top:50%;right:20px;transform:translateY(-50%);',
+        'bottom-left' => 'bottom:20px;left:20px;transform:none;',
+        'bottom-center' => 'bottom:20px;left:50%;transform:translateX(-50%);',
+        'bottom-right' => 'bottom:20px;right:20px;transform:none;',
     ];
+    return $positions[$position] ?? 'bottom:20px;left:50%;transform:translateX(-50%);';
 }
 
-// ========== SETTINGS PAGE ==========
-function pbp_settings_page() {
-    if (!current_user_can('manage_options')) return;
+function pbp_display_popup() {
+    if (!pbp_should_show_popup()) return;
+    
+    $options = get_option('pbp_settings');
+    $content_type = $options['popup_content_type'] ?? 'image';
+    $delay = intval($options['popup_delay'] ?? 5) * 1000;
+    $redirect_type = $options['popup_redirect_type'] ?? 'none';
+    $countdown_enabled = ($options['countdown_enabled'] ?? '0') == '1';
+    $target_date = $options['countdown_target_date'] ?? '';
+    $countdown_on_image = ($options['countdown_on_image'] ?? '1') == '1';
+    $countdown_position = $options['countdown_position'] ?? 'bottom-center';
+    $countdown_style = $options['countdown_style'] ?? 'default';
+    
+    $redirect_url = '#';
+    if ($redirect_type === 'url' && !empty($options['popup_redirect_url'])) {
+        $redirect_url = esc_url($options['popup_redirect_url']);
+    } elseif ($redirect_type === 'page' && !empty($options['popup_redirect_page'])) {
+        $redirect_url = get_permalink(intval($options['popup_redirect_page']));
+    }
+    
+    $image_id = intval($options['popup_image'] ?? 0);
+    $image_url = $image_id ? wp_get_attachment_url($image_id) : '';
+    $html_content = $options['popup_html_content'] ?? '';
+    
+    // Procesează shortcodurile din conținutul HTML
+    if (!empty($html_content)) {
+        $html_content = do_shortcode($html_content);
+    }
+    
+    if ($content_type === 'image' && !$image_url) return;
+    if ($content_type === 'html' && empty($html_content)) return;
+    
+    $bg_color = esc_attr($options['popup_bg_color'] ?? 'rgba(0,0,0,0.8)');
+    $close_color = esc_attr($options['popup_close_color'] ?? '#ffffff');
+    $content_bg = esc_attr($options['popup_content_bg'] ?? '#ffffff');
+    
+    $countdown_css = '';
+    if ($countdown_enabled) {
+        switch ($countdown_style) {
+            case 'dark':
+                $countdown_css = 'background:#1a1a1a;color:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.3);border-radius:12px;';
+                break;
+            case 'light':
+                $countdown_css = 'background:#fff;color:#333;box-shadow:0 4px 15px rgba(0,0,0,0.1);border:1px solid #ddd;border-radius:12px;';
+                break;
+            case 'custom':
+                $countdown_css = '';
+                break;
+            default:
+                $countdown_css = 'background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.2);border-radius:12px;';
+        }
+    }
+    
+    $image_style = 'max-width:100%;height:auto;display:block;margin:0 auto;';
+    $content_style = 'position:relative;margin:auto;text-align:center;background:' . $content_bg . ';border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.3);width:fit-content;max-width:50%;overflow:auto;';
     ?>
-    <div class="wrap">
-        <h1>Popup & Banner Settings</h1>
-        
-        <?php if (pbp_is_countdown_expired()): ?>
-        <div class="notice notice-warning">
-            <p>⚠️ <strong>Countdown-ul a expirat!</strong> Popup-ul este dezactivat automat. Pentru a reactiva popup-ul, modifică data țintă sau dezactivează countdown-ul.</p>
+    <div id="pbp-popup" style="display:none;background:<?php echo $bg_color; ?>;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;opacity:0;transition:opacity 0.3s;">
+        <div id="pbp-popup-content" style="<?php echo $content_style; ?> top:50%;transform:translateY(-50%);">
+            <button id="pbp-popup-close" style="position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;border:none;background:<?php echo $close_color; ?>;font-size:24px;cursor:pointer;z-index:10001;line-height:1;color:<?php echo $close_color === '#ffffff' ? '#333' : '#fff'; ?>;box-shadow:0 2px 10px rgba(0,0,0,0.3);">×</button>
+            
+            <?php if ($content_type === 'image'): ?>
+                <?php if ($redirect_type !== 'none' && $redirect_url !== '#'): ?>
+                    <a href="<?php echo $redirect_url; ?>" target="_blank" style="display:block;position:relative;">
+                        <img src="<?php echo esc_url($image_url); ?>" alt="Popup" style="<?php echo $image_style; ?>">
+                        <?php if ($countdown_enabled && $countdown_on_image && !empty($target_date)): ?>
+                            <div class="pbp-countdown-overlay" style="position:absolute;<?php echo pbp_get_countdown_position_css($countdown_position); ?>;z-index:10;">
+                                <div class="pbp-countdown-timer" style="display:inline-block;font-size:1.5rem;font-weight:bold;font-family:'Courier New',monospace;padding:12px 24px;letter-spacing:3px;<?php echo $countdown_css; ?>">00 : 00 : 00 : 00</div>
+                            </div>
+                        <?php endif; ?>
+                    </a>
+                <?php else: ?>
+                    <div style="position:relative;">
+                        <img src="<?php echo esc_url($image_url); ?>" alt="Popup" style="<?php echo $image_style; ?>">
+                        <?php if ($countdown_enabled && $countdown_on_image && !empty($target_date)): ?>
+                            <div class="pbp-countdown-overlay" style="position:absolute;<?php echo pbp_get_countdown_position_css($countdown_position); ?>;z-index:10;">
+                                <div class="pbp-countdown-timer" style="display:inline-block;font-size:1.5rem;font-weight:bold;font-family:'Courier New',monospace;padding:12px 24px;letter-spacing:3px;<?php echo $countdown_css; ?>">00 : 00 : 00 : 00</div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                
+            <?php elseif ($content_type === 'html'): ?>
+                <?php 
+                $final_html = $html_content;
+                
+                // Procesează shortcodurile din nou (pentru siguranță)
+                $final_html = do_shortcode($final_html);
+                
+                if ($countdown_enabled && !empty($target_date) && strpos($final_html, 'pbp-countdown') !== false) {
+                    $final_html = str_replace(
+                        '<div id="pbp-countdown"></div>',
+                        '<div id="pbp-countdown"><div class="pbp-countdown-timer" style="display:inline-block;font-size:2rem;font-weight:bold;font-family:\'Courier New\',monospace;padding:15px 25px;border-radius:12px;margin:15px auto;' . $countdown_css . '">00 : 00 : 00 : 00</div></div>',
+                        $final_html
+                    );
+                }
+                
+                if ($redirect_type !== 'none' && $redirect_url !== '#') {
+                    echo '<a href="' . $redirect_url . '" target="_blank" style="display:block;text-decoration:none;color:inherit;">' . $final_html . '</a>';
+                } else {
+                    echo $final_html;
+                }
+                ?>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
-        
-        <form method="post" action="options.php" id="pbp-settings-form">
-            <?php
-            settings_fields('pbp_settings_group');
-            do_settings_sections('popup-banner-settings');
-            submit_button();
-            ?>
-        </form>
     </div>
     
     <style>
-    .pbp-image-upload {margin-bottom:10px;}
-    .pbp-image-upload img {max-width:300px;height:auto;border:1px solid #ddd;margin:10px 0;border-radius:8px;}
-    .pbp-color-picker {width:120px;}
-    .form-table th {width:220px;}
-    #pbp_html_wrapper .wp-editor-container {border-radius:8px;}
-    #pbp_html_wrapper .wp-editor-area {background:#f9f9f9;}
-    .pbp-shortcode-notice {margin-bottom:15px;}
+    .pbp-countdown-timer {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        text-align: center;
+    }
+    @media (max-width: 768px) {
+        .pbp-countdown-timer {
+            font-size: 0.9rem !important;
+            padding: 6px 12px !important;
+            letter-spacing: 2px;
+        }
+        #pbp-popup-close {
+            width: 35px !important;
+            height: 35px !important;
+            font-size: 20px !important;
+            top: 10px !important;
+            right: 10px !important;
+        }
+    }
     </style>
     
     <script>
-    jQuery(function($) {
-        function toggleContentFields() {
-            var contentType = $('#popup_content_type').val();
-            var countdownEnabled = $('#countdown_enabled').is(':checked');
-            
-            if (contentType === 'image') {
-                $('#pbp_image_upload_wrapper').closest('tr').show();
-                $('#pbp_html_wrapper').closest('tr').hide();
-                if (countdownEnabled) {
-                    $('#countdown_on_image').closest('tr').show();
-                    $('#countdown_position').closest('tr').show();
-                } else {
-                    $('#countdown_on_image').closest('tr').hide();
-                    $('#countdown_position').closest('tr').hide();
-                }
-            } else {
-                $('#pbp_image_upload_wrapper').closest('tr').hide();
-                $('#pbp_html_wrapper').closest('tr').show();
-                $('#countdown_on_image').closest('tr').hide();
-                $('#countdown_position').closest('tr').hide();
-            }
-            
-            if (countdownEnabled) {
-                $('#countdown_date_wrapper').closest('tr').show();
-                $('#countdown_style').closest('tr').show();
-            } else {
-                $('#countdown_date_wrapper').closest('tr').hide();
-                $('#countdown_style').closest('tr').hide();
-                $('#countdown_on_image').closest('tr').hide();
-                $('#countdown_position').closest('tr').hide();
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        var popup = document.getElementById('pbp-popup');
+        var closeBtn = document.getElementById('pbp-popup-close');
+        
+        if (!popup) return;
+        
+        function disableScroll() {
+            document.body.style.overflow = 'hidden';
+            document.body.style.height = '100%';
         }
         
-        $('#upload_popup_image').click(function(e) {
-            e.preventDefault();
-            var frame = wp.media({title:'Alege imaginea', button:{text:'Utilizează'}, multiple:false});
-            frame.on('select', function() {
-                var attachment = frame.state().get('selection').first().toJSON();
-                $('#popup_image_id').val(attachment.id);
-                $('#popup_image_preview').html('<img src="'+attachment.url+'" style="max-width:300px;height:auto;">');
-                $('#remove_popup_image').show();
+        function enableScroll() {
+            document.body.style.overflow = '';
+            document.body.style.height = '';
+        }
+        
+        setTimeout(function() {
+            if (popup) {
+                popup.style.display = 'block';
+                setTimeout(function() { 
+                    popup.style.opacity = '1';
+                    disableScroll();
+                    
+                    <?php if ($countdown_enabled && !empty($target_date)): ?>
+                    initCountdown();
+                    <?php endif; ?>
+                }, 10);
+            }
+        }, <?php echo $delay; ?>);
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                popup.style.opacity = '0';
+                setTimeout(function() {
+                    popup.style.display = 'none';
+                    document.cookie = "pbp_popup_dismissed=true; path=/; max-age=86400";
+                    enableScroll();
+                }, 300);
             });
-            frame.open();
-        });
-        
-        $('#remove_popup_image').click(function(e) {
-            e.preventDefault();
-            $('#popup_image_id').val('');
-            $('#popup_image_preview').html('');
-            $(this).hide();
-        });
-        
-        $('.pbp-color-picker').each(function() {
-            $(this).wpColorPicker();
-        });
-        
-        function toggleRedirectFields() {
-            var popupType = $('#popup_redirect_type').val();
-            $('input[name="pbp_settings[popup_redirect_url]"]').closest('tr').toggle(popupType === 'url');
-            $('select[name="pbp_settings[popup_redirect_page]"]').closest('tr').toggle(popupType === 'page');
-            
-            var bannerType = $('#banner_url_type').val();
-            $('input[name="pbp_settings[banner_custom_url]"]').closest('tr').toggle(bannerType === 'url');
-            $('select[name="pbp_settings[banner_page_url]"]').closest('tr').toggle(bannerType === 'page');
-            
-            toggleContentFields();
         }
         
-        toggleRedirectFields();
-        
-        $('#popup_redirect_type, #banner_url_type, #popup_content_type, #countdown_enabled').on('change', function() {
-            toggleRedirectFields();
+        popup.addEventListener('click', function(e) {
+            if (e.target === popup) {
+                popup.style.opacity = '0';
+                setTimeout(function() {
+                    popup.style.display = 'none';
+                    document.cookie = "pbp_popup_dismissed=true; path=/; max-age=86400";
+                    enableScroll();
+                }, 300);
+            }
         });
+        
+        var popupContent = document.getElementById('pbp-popup-content');
+        if (popupContent) {
+            popupContent.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        }
+        
+        <?php if ($countdown_enabled && !empty($target_date)): ?>
+        function initCountdown() {
+            var countdownDate = new Date("<?php echo esc_js($target_date); ?>").getTime();
+            var timers = document.querySelectorAll('.pbp-countdown-timer');
+            if (timers.length === 0) return;
+            
+            var interval = setInterval(function() {
+                var now = new Date().getTime();
+                var distance = countdownDate - now;
+                
+                if (distance < 0) {
+                    clearInterval(interval);
+                    timers.forEach(function(timer) {
+                        timer.innerHTML = "00 : 00 : 00 : 00";
+                    });
+                    return;
+                }
+                
+                var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                var hours = Math.floor((distance % (86400000)) / (3600000));
+                var minutes = Math.floor((distance % 3600000) / 60000);
+                var seconds = Math.floor((distance % 60000) / 1000);
+                
+                var display = (days < 10 ? "0" + days : days) + " : " +
+                              (hours < 10 ? "0" + hours : hours) + " : " +
+                              (minutes < 10 ? "0" + minutes : minutes) + " : " +
+                              (seconds < 10 ? "0" + seconds : seconds);
+                
+                timers.forEach(function(timer) {
+                    timer.innerHTML = display;
+                });
+            }, 1000);
+        }
+        <?php endif; ?>
     });
     </script>
     <?php
