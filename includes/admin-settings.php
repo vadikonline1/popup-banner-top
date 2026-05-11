@@ -130,54 +130,32 @@ function pbp_popup_html_content_cb() {
             'toolbar1' => 'formatselect,bold,italic,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,unlink,wp_more,spellchecker,fullscreen,wp_adv',
             'toolbar2' => 'strikethrough,hr,forecolor,pastetext,removeformat,charmap,outdent,indent,undo,redo,wp_help',
         ),
-        'wpautop' => true,  // Auto paragrafe
+        'wpautop' => true,
     );
     
     echo '<div id="pbp_html_wrapper">';
     echo '<div class="pbp-shortcode-notice" style="background:#f0f6ff;border-left:4px solid #007cba;padding:10px;margin-bottom:15px;">';
-    echo '<strong>📌 Suport pentru Shortcoduri</strong><br>';
-    echo 'Poți folosi orice shortcod WordPress: <code>[contact-form-7 id="123"]</code>, <code>[products]</code>, <code>[gravityform id="1"]</code>, etc.<br>';
-    echo 'Countdown placeholder: <code>&lt;div id="pbp-countdown"&gt;&lt;/div&gt;</code>';
+    echo '<strong>📌 Suport pentru CSS și Shortcoduri</strong><br>';
+    echo '✅ Poți folosi <code>&lt;style&gt;...&lt;/style&gt;</code> pentru CSS personalizat.<br>';
+    echo '✅ Poți folosi orice shortcod WordPress: <code>[contact-form-7 id="123"]</code>, <code>[products]</code>, etc.<br>';
+    echo '✅ Countdown placeholder: <code>&lt;div id="pbp-countdown"&gt;&lt;/div&gt;</code>';
     echo '</div>';
     
     wp_editor($content, 'pbp_html_content_editor', $editor_settings);
     
     echo '<p class="description" style="margin-top:10px;">';
-    echo '<strong>💡 Exemplu de structură:</strong><br>';
-    echo '<code>&lt;div style="padding:20px;max-width:500px;margin:0 auto;"&gt;<br>';
-    echo '&nbsp;&nbsp;&lt;h2&gt;Ofertă Specială!&lt;/h2&gt;<br>';
-    echo '&nbsp;&nbsp;[contact-form-7 id="123"]<br>';
+    echo '<strong>💡 Exemplu complet cu CSS și countdown:</strong><br>';
+    echo '<code>&lt;style&gt;<br>';
+    echo '.my-box { background: #f5f5f5; padding: 20px; border-radius: 10px; }<br>';
+    echo '.my-title { color: #c41e3a; font-size: 24px; }<br>';
+    echo '&lt;/style&gt;<br>';
+    echo '&lt;div class="my-box"&gt;<br>';
+    echo '&nbsp;&nbsp;&lt;h2 class="my-title"&gt;Ofertă Specială!&lt;/h2&gt;<br>';
     echo '&nbsp;&nbsp;&lt;div id="pbp-countdown"&gt;&lt;/div&gt;<br>';
-    echo '&nbsp;&nbsp;&lt;p&gt;Profită acum!&lt;/p&gt;<br>';
+    echo '&nbsp;&nbsp;[contact-form-7 id="123"]<br>';
     echo '&lt;/div&gt;</code>';
     echo '</p>';
     echo '</div>';
-    
-    // Adăugăm buton pentru shortcoduri în editor (opțional)
-    add_action('admin_footer', 'pbp_add_shortcode_button');
-}
-
-// Adaugă un buton pentru inserare rapidă shortcoduri
-function pbp_add_shortcode_button() {
-    ?>
-    <script>
-    jQuery(document).ready(function($) {
-        // Adaugă un buton în toolbar-ul editorului
-        if (typeof wp.media !== 'undefined') {
-            // Poți adăuga un meniu dropdown cu shortcoduri comune
-            console.log('Editor ready for shortcodes');
-        }
-    });
-    </script>
-    <style>
-    .pbp-shortcode-notice code {
-        background: #fff;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    </style>
-    <?php
 }
 
 // ========== COUNTDOWN CALLBACKS ==========
@@ -356,14 +334,53 @@ function pbp_banner_close_color_cb() {
     echo '<input type="text" name="pbp_settings[banner_close_color]" value="' . esc_attr($options['banner_close_color'] ?? '#000000') . '" class="pbp-color-picker">';
 }
 
+// ========== FUNCȚIE SANITIZARE PERMISIVĂ PENTRU CSS ==========
+function pbp_sanitize_html_with_css($content) {
+    // Permite mai multe tag-uri și atribute
+    $allowed_tags = wp_kses_allowed_html('post');
+    
+    // Adaugă tag-ul style
+    $allowed_tags['style'] = array(
+        'type' => true,
+        'media' => true,
+        'scoped' => true,
+    );
+    
+    // Adaugă atributul 'style' pentru toate tag-urile existente
+    foreach ($allowed_tags as $tag => $attributes) {
+        $allowed_tags[$tag]['style'] = true;
+        $allowed_tags[$tag]['class'] = true;
+        $allowed_tags[$tag]['id'] = true;
+    }
+    
+    // Permite și tag-ul link pentru fonturi externe
+    $allowed_tags['link'] = array(
+        'href' => true,
+        'rel' => true,
+        'type' => true,
+        'media' => true,
+    );
+    
+    // Permite meta viewport
+    $allowed_tags['meta'] = array(
+        'name' => true,
+        'content' => true,
+        'charset' => true,
+    );
+    
+    return wp_kses($content, $allowed_tags);
+}
+
 // ========== SANITIZE ==========
 function pbp_sanitize_settings($input) {
+    $html_content = isset($input['popup_html_content']) ? $input['popup_html_content'] : '';
+    
     return [
         'popup_enabled' => (isset($input['popup_enabled']) && !pbp_is_countdown_expired()) ? '1' : '0',
         'popup_delay' => absint($input['popup_delay']),
         'popup_content_type' => sanitize_text_field($input['popup_content_type']),
         'popup_image' => absint($input['popup_image']),
-        'popup_html_content' => wp_kses_post($input['popup_html_content']),
+        'popup_html_content' => pbp_sanitize_html_with_css($html_content),
         'countdown_enabled' => isset($input['countdown_enabled']) ? '1' : '0',
         'countdown_target_date' => sanitize_text_field($input['countdown_target_date']),
         'countdown_on_image' => isset($input['countdown_on_image']) ? '1' : '0',
