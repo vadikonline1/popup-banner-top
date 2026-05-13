@@ -157,7 +157,7 @@ function pbp_display_popup() {
     }
     
     $image_style = 'max-width:100%;height:auto;display:block;margin:0 auto;';
-    $content_style = 'position:relative;margin:auto;text-align:center;background:' . $content_bg . ';border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.3);width:fit-content;max-width:50%;overflow:auto;';
+    $content_style = 'position:relative;margin:auto;text-align:center;background:' . $content_bg . ';border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.3);width:fit-content;overflow:auto;';
     ?>
     <div id="pbp-popup" style="display:none;background:<?php echo $bg_color; ?>;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;opacity:0;transition:opacity 0.3s;">
         <div id="pbp-popup-content" style="<?php echo $content_style; ?> top:50%;transform:translateY(-50%);">
